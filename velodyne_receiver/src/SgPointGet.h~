@@ -1,0 +1,70 @@
+#include <cnoid/SceneGraph>
+#include "GeometryHandle.h"
+
+
+namespace grasp{
+
+class SgPointsRenderer;
+	
+class SgPointsGet : public cnoid::SgVisitor
+{
+	public:
+//		SgVisitShapeGet(){	}
+		virtual void visitShape(cnoid::SgShape* shape){
+			this->shape.push_back(shape);
+		}
+		//virtual bool visitClusterShape(SgClusterRenderer *clusterShape){
+		//	this->clusterShape.push_back(clusterShape);
+		//}
+		std::vector<cnoid::SgShape*> shape;
+		//std::vector<SgClusterRenderer*> clusterShape;
+};
+
+class SgClusterRenderer : public cnoid::SgCustomGLNode
+{
+	public:
+		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+		SgClusterRenderer(ObjectShape* object){
+			setRenderingFunction(boost::bind(&SgClusterRenderer::renderCluster, this));
+			this->object = object;
+		}
+
+		void renderCluster(){
+			glPushAttrib(GL_LIGHTING_BIT | GL_CURRENT_BIT);
+			glDisable(GL_LIGHTING);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+			glBegin(GL_POINTS);
+			
+			for(int i=0;i<object->nTriangles;i++){
+				int cid = object->triangles[i].idCluster;
+				float *c = object->clusterNodes[cid].color;
+				glColor3f(c[0],c[1],c[2]);
+				grasp::VertexLink** ver = object->triangles[i].ver;
+				glVertex3d(ver[0]->pos[0],ver[0]->pos[1],ver[0]->pos[2]);
+				//glVertex3d(ver[1]->pos[0],ver[1]->pos[1],ver[1]->pos[2]);
+				//glVertex3d(ver[2]->pos[0],ver[2]->pos[1],ver[2]->pos[2]);
+			}
+
+			glEnd();
+			glPopAttrib();
+		}
+		virtual void accept(cnoid::SgVisitor& visitor){
+			cnoid::SgCustomGLNode::accept(visitor);
+			SgLastRenderer(this, true);
+		}
+		static SgClusterRenderer* SgLastRenderer(SgClusterRenderer* sg, bool isWrite){
+			static SgClusterRenderer* last;
+			if(isWrite) last=sg;
+			return last;
+		}
+		
+		ObjectShape* object;
+};
+typedef boost::intrusive_ptr<SgClusterRenderer> SgClusterRendererPtr;
+
+
+
+}
+
